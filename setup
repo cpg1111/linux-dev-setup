@@ -1,20 +1,27 @@
 #!/bin/bash
 
+set -x
+set -o
+
 DISTRO=""
 PKG_MGR=""
-HAS_GIT=$([ `which git` != "" ] && echo $?)
-HAS_PYTHON=$([ `which python` != "" ] && echo $?)
-HAS_GO=$([ `which go` != "" ] && echo $?)
-HAS_MAKE=$([ `which make` != "" ] && echo $?)
-HAS_RUBY=$([ `which ruby` != "" ] && echo $?)
-HAS_NODE=$([ `which node` != "" ] && echo $?)
+GIT=`which git`
+PYTHON=`which python`
+GO=`which go`
+MAKE=`which make`
+RUBY=`which ruby`
+NODE=`which node`
+PIP=`which pip`
+DOCKER=`which docker`
+VAGRANT=`which vagrant`
+# HAS_KVM_ENABLED=TODO
 GO_VERSION=1.7.4
 GO_ARCH=linux-amd64
 
 function which_distro () {
     for p in apt-get yum pacman emerge
     do
-        if [ `which ${p}` -neq "" ]; then
+        if [ "`which ${p}`" != "" ]; then
             PKG_MGR=$p
             if [ "${p}" == "apt-get" ]; then
                 DISTRO="debian"
@@ -25,19 +32,20 @@ function which_distro () {
             else
                 DISTRO="gentoo"
             fi
+            break
         fi
     done
 }
 
 function get_pkgs () {
-    local install_list=""
-    if [ $HAS_GIT == 1 ]; then
+local install_list="curl ca-certificates apt-transport-https software-properties-common"
+    if [ "$GIT" == "" ]; then
         install_list="$install_list git"
     fi
-    if [ $HAS_PYTHON == 1 ]; then
+    if [ "$PYTHON" == "" ]; then
         install_list="$install_list python"
     fi
-    if [ $HAS_MAKE == 1 ]; then
+    if [ "$MAKE" == "" ]; then
         install_list="$install_list build-essential"
     fi
     $PKG_MGR install -y $install_list
@@ -51,3 +59,53 @@ function install_go () {
     echo "export GOPATH=$HOME/go" >> $HOME/.bashrc
     curl https://glide.sh/get | sh
 }
+
+function install_ruby () {
+    gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3
+    curl -sSL https://get.rvm.io | bash
+}
+
+function install_nodejs () {
+    curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.0/install.sh | bash
+}
+
+function install_pip () {
+    curl -o get-pip.py https://bootstrap.pypa.io/get-pip.py
+    python get-pip.py
+}
+
+function install_docker () {
+    if [ "$DISTRO" == "debian" ]; then
+        curl -fsSL https://yum.dockerproject.org/gpg | apt-key add -
+        apt-key fingerprint 58118E89F3A912897C070ADBF76221572C52609D
+        add-apt-repository "deb https://apt.dockerproject.org/repo/ debian-$(lsb_release -cs) main"
+        apt-get update
+        apt-get -y install docker-engine
+    fi
+}
+
+function install_deps () {
+    which_distro
+    get_pkgs
+    if [ "$GO" == "" ]; then
+        install_go
+    fi
+    if [ "$RUBY" == "" ]; then
+        install_ruby
+    fi
+    if [ "$NODE" == "" ]; then
+        install_nodejs
+    fi
+    if [ "$PIP" == "" ]; then
+        install_pip
+    fi
+    if [ "$DOCKER" == "" ]; then
+        install_docker
+    fi
+}
+
+install_deps
+
+docker build -t install_keys_to_github .
+mkdir -p $HOME/.ssh/
+docker run --rm -it -e GITHUB_TOKE=$GITHUB_TOKEN -v $HOME/.ssh/:/root/.ssh/ install_keys_to_github
