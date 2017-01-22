@@ -1,0 +1,53 @@
+#!/bin/bash
+
+DISTRO=""
+PKG_MGR=""
+HAS_GIT=$([ `which git` != "" ] && echo $?)
+HAS_PYTHON=$([ `which python` != "" ] && echo $?)
+HAS_GO=$([ `which go` != "" ] && echo $?)
+HAS_MAKE=$([ `which make` != "" ] && echo $?)
+HAS_RUBY=$([ `which ruby` != "" ] && echo $?)
+HAS_NODE=$([ `which node` != "" ] && echo $?)
+GO_VERSION=1.7.4
+GO_ARCH=linux-amd64
+
+function which_distro () {
+    for p in apt-get yum pacman emerge
+    do
+        if [ `which ${p}` -neq "" ]; then
+            PKG_MGR=$p
+            if [ "${p}" == "apt-get" ]; then
+                DISTRO="debian"
+            elif [ "${p}" == "yum" ]; then
+                DISTRO="centos"
+            elif [ "${p}" == "pacman" ]; then
+                DISTRO="arch"
+            else
+                DISTRO="gentoo"
+            fi
+        fi
+    done
+}
+
+function get_pkgs () {
+    local install_list=""
+    if [ $HAS_GIT == 1 ]; then
+        install_list="$install_list git"
+    fi
+    if [ $HAS_PYTHON == 1 ]; then
+        install_list="$install_list python"
+    fi
+    if [ $HAS_MAKE == 1 ]; then
+        install_list="$install_list build-essential"
+    fi
+    $PKG_MGR install -y $install_list
+}
+
+function install_go () {
+    curl -o /tmp/go.tar.gz https://storage.googleapis.com/golang/go${GO_VERSION}.${GO_ARCH}.tar.gz
+    tar -C /usr/local/ -xzvf /tmp/go.tar.gz
+    mkdir -p $HOME/go/
+    echo "export GOROOT=/usr/local/go/" >> $HOME/.bashrc
+    echo "export GOPATH=$HOME/go" >> $HOME/.bashrc
+    curl https://glide.sh/get | sh
+}

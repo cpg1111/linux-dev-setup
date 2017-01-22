@@ -4,11 +4,15 @@ A suite of tools to install my preferred dev tools onto a brand new linux laptop
 
 ## Installs
 
+- git (if missing)
+
 - build-essential
 
 - curl
 
 - vim
+
+- Python (if missing)
 
 - Go
 
